@@ -1,0 +1,40 @@
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: "17 4 * * *"   # daily
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+
+      - name: Fetch upstream
+        run: git clone --depth 1 https://github.com/zigbee2mqtt/hassio-zigbee2mqtt.git "$RUNNER_TEMP/upstream"
+
+      - name: Rebuild 1st-floor app from upstream
+        run: bash tools/customise.sh "$RUNNER_TEMP/upstream" "$GITHUB_WORKSPACE"
+
+      - name: Commit and push if changed
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          UPSTREAM_SHA=$(git -C "$RUNNER_TEMP/upstream" rev-parse --short HEAD)
+          VERSION=$(jq -r .version zigbee2mqtt-1stfloor/config.json)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Sync upstream ${UPSTREAM_SHA} (Zigbee2MQTT ${VERSION})"
+          git push
