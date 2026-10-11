@@ -4,9 +4,10 @@
 #
 # Usage: tools/customise.sh <upstream-checkout> <fork-worktree>
 #
-# Only the stable app is kept (Edge/Proxy removed). Its ID, name, data folder,
-# MQTT base topic and socat port are changed so it can run alongside the
-# official Zigbee2MQTT app. The Docker image is still the official stable one.
+# Only the stable app is kept (Edge/Proxy removed), as two instances:
+#  - "Zigbee2MQTT 1st Floor": own ID, data folder, MQTT base topic
+#  - "Zigbee2MQTT Garage":    own ID/name, but the official app's data folder and topic
+# The socat port is disabled on both. The Docker image is still the official stable one.
 set -euo pipefail
 
 UP="$(cd "$1" && pwd)"
@@ -32,9 +33,24 @@ find "$FORK" -mindepth 1 -maxdepth 1 \
   -exec rm -rf {} +
 (cd "$UP" && tar cf - --exclude=./.git --exclude=./.github .) | (cd "$FORK" && tar xf -)
 
-# Keep only the stable app, renamed
+# Keep only the stable app: one copy per instance
 rm -rf "$FORK/zigbee2mqtt-edge" "$FORK/zigbee2mqtt-proxy"
+cp -a "$FORK/$SRC_DIR" "$FORK/zigbee2mqtt-garage"
 mv "$FORK/$SRC_DIR" "$FORK/$DST_DIR"
+
+# Garage instance: replaces the official app under a new name. Same data folder
+# (/config/zigbee2mqtt) and MQTT topic as the official app, so the existing garage
+# network, devices and HA entities carry straight over. Never run it alongside the
+# official app.
+GCFG="$FORK/zigbee2mqtt-garage/config.json"
+jq --indent 2 --arg url "$REPO_URL/tree/master/zigbee2mqtt-garage" '
+  .name = "Zigbee2MQTT Garage"
+  | .slug = "zigbee2mqtt_garage"
+  | .description = "Zigbee2MQTT instance for the garage network"
+  | .url = $url
+  | .panel_title = "Z2M Garage"
+  | .ports["8485/tcp"] = null
+' "$GCFG" > "$GCFG.tmp" && mv "$GCFG.tmp" "$GCFG"
 
 CFG="$FORK/$DST_DIR/config.json"
 jq --indent 2 \
@@ -55,4 +71,4 @@ jq --indent 2 --arg url "$REPO_URL" '
   | .url = $url
 ' "$FORK/repository.json" > "$FORK/repository.json.tmp" && mv "$FORK/repository.json.tmp" "$FORK/repository.json"
 
-echo "Customised: $(jq -r '.name + " " + .version' "$CFG")"
+echo "Customised: $(jq -r '.name + " " + .version' "$CFG"), $(jq -r '.name + " " + .version' "$GCFG")"
