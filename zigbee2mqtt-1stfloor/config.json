@@ -1,14 +1,14 @@
 {
-  "name": "Zigbee2MQTT",
+  "name": "Zigbee2MQTT 1st Floor",
   "version": "2.14.2-1",
-  "slug": "zigbee2mqtt",
-  "description": "Use your ZigBee devices without the vendor's bridge or gateway",
+  "slug": "zigbee2mqtt_1stfloor",
+  "description": "Second Zigbee2MQTT instance (1st floor / attic network)",
   "breaking_versions": [
     "2.0.0-1"
   ],
   "uart": true,
   "udev": true,
-  "url": "https://github.com/zigbee2mqtt/hassio-zigbee2mqtt/tree/master/zigbee2mqtt",
+  "url": "https://github.com/aardvarkl/hassio-zigbee2mqtt/tree/master/zigbee2mqtt-1stfloor",
   "startup": "application",
   "services": [
     "mqtt:need"
@@ -44,7 +44,7 @@
     }
   ],
   "ports": {
-    "8485/tcp": 8485,
+    "8485/tcp": null,
     "8099/tcp": null
   },
   "ports_description": {
@@ -52,7 +52,7 @@
     "8099/tcp": "Frontend tcp-listen port"
   },
   "options": {
-    "data_path": "/config/zigbee2mqtt",
+    "data_path": "/config/zigbee2mqtt_1stfloor",
     "socat": {
       "enabled": false,
       "master": "pty,raw,echo=0,link=/tmp/ttyZ2M,mode=777",
@@ -60,7 +60,9 @@
       "options": "-d -d",
       "log": false
     },
-    "mqtt": {},
+    "mqtt": {
+      "base_topic": "zigbee2mqtt_1stfloor"
+    },
     "serial": {}
   },
   "schema": {
@@ -90,5 +92,6 @@
     "watchdog": "str?",
     "force_onboarding": "bool?"
   },
-  "image": "ghcr.io/zigbee2mqtt/zigbee2mqtt-{arch}"
+  "image": "ghcr.io/zigbee2mqtt/zigbee2mqtt-{arch}",
+  "panel_title": "Z2M 1st Floor"
 }
