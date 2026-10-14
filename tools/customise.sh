@@ -4,10 +4,11 @@
 #
 # Usage: tools/customise.sh <upstream-checkout> <fork-worktree>
 #
-# Only the stable app is kept (Edge/Proxy removed), as two instances:
+# Only the stable app is kept (Edge/Proxy removed), as three instances:
 #  - "Zigbee2MQTT 1st Floor": own ID, data folder, MQTT base topic
 #  - "Zigbee2MQTT Garage":    own ID/name, but the official app's data folder and topic
-# The socat port is disabled on both. The Docker image is still the official stable one.
+#  - "Zigbee2MQTT Ground":    own ID, data folder, MQTT base topic (ground-floor network)
+# The socat port is disabled on all of them. The Docker image is still the official stable one.
 set -euo pipefail
 
 UP="$(cd "$1" && pwd)"
@@ -36,6 +37,7 @@ find "$FORK" -mindepth 1 -maxdepth 1 \
 # Keep only the stable app: one copy per instance
 rm -rf "$FORK/zigbee2mqtt-edge" "$FORK/zigbee2mqtt-proxy"
 cp -a "$FORK/$SRC_DIR" "$FORK/zigbee2mqtt-garage"
+cp -a "$FORK/$SRC_DIR" "$FORK/zigbee2mqtt-ground"
 mv "$FORK/$SRC_DIR" "$FORK/$DST_DIR"
 
 # Garage instance: replaces the official app under a new name. Same data folder
@@ -51,6 +53,19 @@ jq --indent 2 --arg url "$REPO_URL/tree/master/zigbee2mqtt-garage" '
   | .panel_title = "Z2M Garage"
   | .ports["8485/tcp"] = null
 ' "$GCFG" > "$GCFG.tmp" && mv "$GCFG.tmp" "$GCFG"
+
+# Ground instance: ground-floor network (coordinator is the former ZHA radio)
+GRCFG="$FORK/zigbee2mqtt-ground/config.json"
+jq --indent 2 --arg url "$REPO_URL/tree/master/zigbee2mqtt-ground" '
+  .name = "Zigbee2MQTT Ground"
+  | .slug = "zigbee2mqtt_ground"
+  | .description = "Zigbee2MQTT instance for the ground-floor network"
+  | .url = $url
+  | .panel_title = "Z2M Ground"
+  | .options.data_path = "/config/zigbee2mqtt_ground"
+  | .options.mqtt.base_topic = "zigbee2mqtt_ground"
+  | .ports["8485/tcp"] = null
+' "$GRCFG" > "$GRCFG.tmp" && mv "$GRCFG.tmp" "$GRCFG"
 
 CFG="$FORK/$DST_DIR/config.json"
 jq --indent 2 \
@@ -71,4 +86,4 @@ jq --indent 2 --arg url "$REPO_URL" '
   | .url = $url
 ' "$FORK/repository.json" > "$FORK/repository.json.tmp" && mv "$FORK/repository.json.tmp" "$FORK/repository.json"
 
-echo "Customised: $(jq -r '.name + " " + .version' "$CFG"), $(jq -r '.name + " " + .version' "$GCFG")"
+echo "Customised: $(jq -r '.name + " " + .version' "$CFG"), $(jq -r '.name + " " + .version' "$GCFG"), $(jq -r '.name + " " + .version' "$GRCFG")"
